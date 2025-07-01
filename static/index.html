@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Appointment Assistant</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f5f7fa;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        h2 {
+            margin-top: 2em;
+            color: #2d3a4b;
+        }
+        #container {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 32px rgba(44,62,80,0.08);
+            padding: 2em;
+            margin-top: 1em;
+            width: 420px;
+            display: flex;
+            flex-direction: column;
+        }
+        #chat {
+            border: 1px solid #e0e0e0;
+            background: #f9f9fb;
+            border-radius: 8px;
+            padding: 1em;
+            height: 350px;
+            overflow-y: auto;
+            margin-bottom: 1em;
+            display: flex;
+            flex-direction: column;
+        }
+        .message {
+            display: flex;
+            align-items: flex-end;
+            margin-bottom: 10px;
+        }
+        .user-bubble, .ai-bubble {
+            max-width: 70%;
+            padding: 10px 16px;
+            border-radius: 16px;
+            font-size: 1em;
+            position: relative;
+            word-break: break-word;
+        }
+        .user-bubble {
+            background: #e3f0ff;
+            color: #2257a7;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+        .ai-bubble {
+            background: #e6f7e6;
+            color: #2e7d32;
+            margin-right: auto;
+            border-bottom-left-radius: 4px;
+        }
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            margin: 0 8px;
+            background: #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #fff;
+        }
+        .user-avatar { background: #2257a7; }
+        .ai-avatar { background: #2e7d32; }
+        .timestamp {
+            font-size: 0.75em;
+            color: #888;
+            margin-top: 2px;
+        }
+        #input-row {
+            display: flex;
+            gap: 8px;
+        }
+        #user_input {
+            flex: 1;
+            padding: 10px;
+            font-size: 1em;
+            border-radius: 8px;
+            border: 1px solid #bbb;
+        }
+        #send_btn, #clear_btn {
+            padding: 10px 14px;
+            font-size: 1em;
+            border-radius: 8px;
+            border: none;
+            background: #2257a7;
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #send_btn:disabled {
+            background: #8bb1e3;
+            cursor: not-allowed;
+        }
+        #clear_btn {
+            background: #e74c3c;
+        }
+        #insight {
+            margin-top: 1em;
+            background: #f3f6fa;
+            border-radius: 8px;
+            padding: 1em;
+            font-size: 0.95em;
+            color: #444;
+        }
+    </style>
+</head>
+<body>
+    <h2>AI Appointment Assistant</h2>
+    <div id="container">
+        <div id="chat"></div>
+        <div id="input-row">
+            <input type="text" id="user_input" placeholder="Type your message..." autocomplete="off">
+            <button id="send_btn" onclick="sendMessage()">Send</button>
+            <button id="clear_btn" onclick="clearChat()">Clear</button>
+        </div>
+        <div id="insight">No appointments scheduled yet. Ask me to book or view appointments!</div>
+    </div>
+    <script>
+        let messages = [];
+        const chatDiv = document.getElementById('chat');
+        const input = document.getElementById('user_input');
+        const sendBtn = document.getElementById('send_btn');
+        const clearBtn = document.getElementById('clear_btn');
+        const insightDiv = document.getElementById('insight');
+
+        function formatTime() {
+            const d = new Date();
+            return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+
+        function appendMessage(role, content) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar ' + (role === 'user' ? 'user-avatar' : 'ai-avatar');
+            avatar.textContent = role === 'user' ? 'U' : 'A';
+
+            const bubble = document.createElement('div');
+            bubble.className = role === 'user' ? 'user-bubble' : 'ai-bubble';
+            bubble.textContent = content;
+
+            const timestamp = document.createElement('div');
+            timestamp.className = 'timestamp';
+            timestamp.textContent = formatTime();
+
+            if (role === 'user') {
+                msgDiv.appendChild(timestamp);
+                msgDiv.appendChild(bubble);
+                msgDiv.appendChild(avatar);
+            } else {
+                msgDiv.appendChild(avatar);
+                msgDiv.appendChild(bubble);
+                msgDiv.appendChild(timestamp);
+            }
+
+            chatDiv.appendChild(msgDiv);
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+        }
+
+        function showTyping() {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message ai-typing';
+            msgDiv.innerHTML = `
+                <div class="avatar ai-avatar">A</div>
+                <div class="ai-bubble"><em>AI is typing...</em></div>
+            `;
+            chatDiv.appendChild(msgDiv);
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+            return msgDiv;
+        }
+
+        function removeTyping(typingDiv) {
+            if (typingDiv && typingDiv.parentNode) {
+                typingDiv.parentNode.removeChild(typingDiv);
+            }
+        }
+
+        function updateInsight() {
+            // Example: parse messages for appointment info
+            const appts = messages.filter(m => m.content.toLowerCase().includes('appointment'));
+            if (appts.length === 0) {
+                insightDiv.textContent = "No appointments scheduled yet. Ask me to book or view appointments!";
+            } else {
+                insightDiv.textContent = `You've discussed appointments ${appts.length} time(s).`;
+            }
+        }
+
+        async function sendMessage() {
+            const userMsg = input.value.trim();
+            if (!userMsg) return;
+            appendMessage('user', userMsg);
+            messages.push({role: 'user', content: userMsg});
+            input.value = '';
+            input.disabled = true;
+            sendBtn.disabled = true;
+
+            // Show AI typing...
+            const typingDiv = showTyping();
+
+            try {
+                const res = await fetch('/chat/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({messages})
+                });
+
+                if (!res.ok || !res.body) throw new Error("Server error");
+
+                const reader = res.body.getReader();
+                let decoder = new TextDecoder();
+                let aiReply = '';
+
+                while (true) {
+                    const {done, value} = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value, {stream: true});
+                    aiReply += chunk;
+                    // Update typing bubble with streamed content
+                    typingDiv.querySelector('.ai-bubble').textContent = aiReply;
+                    chatDiv.scrollTop = chatDiv.scrollHeight;
+                }
+                removeTyping(typingDiv);
+                appendMessage('ai', aiReply);
+                messages.push({role: 'assistant', content: aiReply});
+                updateInsight();
+            } catch (err) {
+                removeTyping(typingDiv);
+                appendMessage('ai', "Sorry, there was an error. Please try again.");
+            } finally {
+                input.disabled = false;
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        }
+
+        function clearChat() {
+            messages = [];
+            chatDiv.innerHTML = '';
+            updateInsight();
+            input.focus();
+        }
+
+        input.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Initial insight
+        updateInsight();
+    </script>
+</body>
+</html>
